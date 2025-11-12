@@ -6,75 +6,91 @@ using System.Windows.Forms;
 
 namespace LabWork
 {
-        public class GraphForm : Form
+    public class GraphForm : Form
     {
         // --- Параметри функції ---
         // y = (3x + 1) / arctg(x)
-        private Func<double, double> func = x => (3 * x + 1) / Math.Atan(x);
-        private double xMin = 0.1;
-        private double xMax = 1.5;
+        private Func<double, double> _func = x => (3 * x + 1) / Math.Atan(x);
+        private double _xMin = 0.1;
+        private double _xMax = 1.5;
         
-        // Розраховані вручну мінімум та максимум функції на цьому діапазоні
-        // y(0.1) ≈ 13.05
-        // y(1.5) ≈ 5.59
-        // Візьмемо діапазон з невеликим запасом.
-        private double yMin = 5.0; 
-        private double yMax = 14.0;
+        // Межі Y тепер будуть розраховані динамічно
+        private double _yMin; 
+        private double _yMax;
 
-        // Відступ від країв форми для осей
-        private int padding = 80; 
+        // Відступ від країв форми для осей (використовуємо 80, як у вашому коді)
+        private int _padding = 80; 
 
         // Шрифти та пензлі для рисування
-        private Font axisFont = new Font("Arial", 8);
-        private Brush textBrush = Brushes.Black;
-        private Pen graphPen = new Pen(Color.Red, 3);
-        private Pen axisPen = new Pen(Color.Black, 2);
-        private Pen gridPen = new Pen(Color.LightGray, 1) { DashStyle = DashStyle.Dash };
-        private Brush pointBrush = Brushes.Blue;
+        private Font _axisFont = new Font("Arial", 8);
+        private Brush _textBrush = Brushes.Black;
+        private Pen _graphPen = new Pen(Color.Red, 3);
+        private Pen _axisPen = new Pen(Color.Black, 2);
+        private Pen _gridPen = new Pen(Color.LightGray, 1) { DashStyle = DashStyle.Dash };
+        private Brush _pointBrush = Brushes.Blue;
+        private Font _pointFont = new Font("Arial", 8, FontStyle.Bold);
 
         public GraphForm()
         {
-            this.Text = "Графік функції y = (3x + 1) / arctg(x)";
+            // --- 1. Спочатку розраховуємо межі Y ---
+            CalculateYBounds();
+            
+            // --- 2. Тепер налаштовуємо форму ---
+            this.Text = "Графік функції y = (3x + 1) / arctg(x) (Динамічний)";
             this.Width = 800;
             this.Height = 600;
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.White;
 
-            // --- Ключові властивості ---
-            
-            // 1. Вказує формі, що її потрібно повністю перерисовувати
-            //    при кожній зміні розміру.
             this.ResizeRedraw = true; 
-            
-            // 2. Використовує подвійну буферизацію, щоб уникнути
-            //    мерехтіння графіка під час перерисування.
             this.DoubleBuffered = true; 
         }
 
         /// <summary>
-        /// Цей метод викликається щоразу, коли форму потрібно перерисувати
-        /// (наприклад, при запуску, зміні розміру, відновленні).
+        /// Динамічно розраховує yMin та yMax на основі діапазону X.
+        /// </summary>
+        private void CalculateYBounds()
+        {
+            _yMin = double.MaxValue;
+            _yMax = double.MinValue;
+            double dx_smooth = 0.01; // Використовуємо малий крок для точності
+
+            for (double x = _xMin; x <= _xMax; x += dx_smooth)
+            {
+                double y = _func(x);
+                if (y < _yMin) _yMin = y;
+                if (y > _yMax) _yMax = y;
+            }
+
+            // Додаємо 10% "повітря" зверху та знизу
+            double margin = (_yMax - _yMin) * 0.1;
+            if (margin == 0) margin = 1.0; // Захист, якщо лінія пласка
+
+            _yMin -= margin;
+            _yMax += margin;
+        }
+
+        /// <summary>
+        /// Цей метод викликається щоразу, коли форму потрібно перерисувати.
         /// </summary>
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
             Graphics g = e.Graphics;
-            
-            // Вмикаємо згладжування для гарного вигляду ліній
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            // Отримуємо *поточні* розміри клієнтської області вікна.
-            // Це гарантує, що графік завжди масштабується до поточного розміру.
             int width = this.ClientSize.Width;
             int height = this.ClientSize.Height;
 
-            // --- 1. Рисуємо осі та сітку ---
+            // Перевіряємо, чи є взагалі місце для рисування
+            if (width <= 2 * _padding || height <= 2 * _padding)
+            {
+                // Вікно занадто мале, нічого не робимо
+                return;
+            }
+
             DrawAxesAndGrid(g, width, height);
-
-            // --- 2. Рисуємо плавну лінію графіка ---
             DrawGraphLine(g, width, height);
-
-            // --- 3. Рисуємо точки з кроком Δx = 0.2 ---
             DrawDataPoints(g, width, height);
         }
 
@@ -84,33 +100,38 @@ namespace LabWork
         private void DrawAxesAndGrid(Graphics g, int width, int height)
         {
             // --- Осі ---
-            // Вісь Y (з урахуванням відступів)
-            g.DrawLine(axisPen, padding, height - padding, padding, padding);
-            // Вісь X (з урахуванням відступів)
-            g.DrawLine(axisPen, padding, height - padding, width - padding, height - padding);
+            g.DrawLine(_axisPen, _padding, height - _padding, _padding, _padding);
+            g.DrawLine(_axisPen, _padding, height - _padding, width - _padding, height - _padding);
 
-            // Назви осей
-            g.DrawString("Y", this.Font, textBrush, padding - 20, padding - 20);
-            g.DrawString("X", this.Font, textBrush, width - padding + 5, height - padding - 20);
-            // Зміщення початку позначки "0" для візуального коригування, бо значення "1.1" перекриває "0"
-            g.DrawString("0", this.Font, textBrush, padding - 15 - 5, height - padding + 5);
+            // --- Назви осей ---
+            g.DrawString("Y", _axisFont, _textBrush, _padding - 20, _padding - 20);
+            g.DrawString("X", _axisFont, _textBrush, width - _padding + 5, height - _padding - 20);
+            // Використовуємо ваш зсув для "0"
+            g.DrawString("0", _axisFont, _textBrush, _padding - 15 - 5, height - _padding + 5);
 
             // --- Мітки та сітка по осі X (від 0.1 до 1.5 з кроком 0.2) ---
-            for (double x = xMin; x <= xMax + 0.01; x += 0.2)
+            for (double x = _xMin; x <= _xMax + 0.01; x += 0.2)
             {
                 int px = MapX(x, width);
-                g.DrawLine(gridPen, px, height - padding - 5, px, padding); // Вертикальна лінія сітки
-                g.DrawLine(Pens.Black, px, height - padding - 5, px, height - padding + 5); // Засічка
-                g.DrawString(x.ToString("F1"), axisFont, textBrush, px - 10, height - padding + 10);
+                g.DrawLine(_gridPen, px, height - _padding - 5, px, _padding);
+                g.DrawLine(Pens.Black, px, height - _padding - 5, px, height - _padding + 5);
+                g.DrawString(x.ToString("F1"), _axisFont, _textBrush, px - 10, height - _padding + 10);
             }
 
-            // --- Мітки та сітка по осі Y (від 5 до 14 з кроком 1) ---
-            for (double y = yMin; y <= yMax; y += 1)
+            // --- Динамічні мітки та сітка по осі Y ---
+            // Рисуємо мітки з кроком 1.0, починаючи з першого цілого числа у видимому діапазоні
+            double firstYTick = Math.Ceiling(_yMin);
+            for (double y = firstYTick; y <= _yMax; y += 1.0)
             {
                 int py = MapY(y, height);
-                g.DrawLine(gridPen, padding + 5, py, width - padding, py); // Горизонтальна лінія сітки
-                g.DrawLine(Pens.Black, padding - 5, py, padding + 5, py); // Засічка
-                g.DrawString(y.ToString("F0"), axisFont, textBrush, padding - 30, py - 6);
+                
+                // Рисуємо, тільки якщо мітка потрапляє у видиму область
+                if (py >= _padding && py <= height - _padding)
+                {
+                    g.DrawLine(_gridPen, _padding + 5, py, width - _padding, py);
+                    g.DrawLine(Pens.Black, _padding - 5, py, _padding + 5, py);
+                    g.DrawString(y.ToString("F0"), _axisFont, _textBrush, _padding - 30, py - 6);
+                }
             }
         }
         
@@ -120,13 +141,13 @@ namespace LabWork
         private void DrawGraphLine(Graphics g, int width, int height)
         {
             List<Point> points = new List<Point>();
-            double dx_smooth = 0.01; // Малий крок для плавної лінії
+            double dx_smooth = 0.01; 
 
-            for (double x = xMin; x <= xMax; x += dx_smooth)
+            for (double x = _xMin; x <= _xMax; x += dx_smooth)
             {
-                double y = func(x);
-                // Додаємо точку, лише якщо вона в межах нашого логічного діапазону
-                if (y >= yMin && y <= yMax)
+                double y = _func(x);
+                // Додаємо точку, лише якщо вона в межах нових динамічних меж
+                if (y >= _yMin && y <= _yMax)
                 {
                     points.Add(new Point(MapX(x, width), MapY(y, height)));
                 }
@@ -134,7 +155,7 @@ namespace LabWork
 
             if (points.Count > 1)
             {
-                g.DrawLines(graphPen, points.ToArray());
+                g.DrawLines(_graphPen, points.ToArray());
             }
         }
 
@@ -144,45 +165,54 @@ namespace LabWork
         private void DrawDataPoints(Graphics g, int width, int height)
         {
             double dx_user = 0.2; // Крок з завдання
-            Font pointFont = new Font("Arial", 8, FontStyle.Bold);
 
-            for (double x = xMin; x <= xMax + 0.01; x += dx_user)
+            for (double x = _xMin; x <= _xMax + 0.01; x += dx_user)
             {
-                double currentX = Math.Round(x, 2); // Округлення для уникнення проблем з точністю
-                double y = func(currentX);
+                double currentX = Math.Round(x, 2); 
+                double y = _func(currentX);
                 
-                int px = MapX(currentX, width);
-                int py = MapY(y, height);
+                // Рисуємо точку та підпис, лише якщо Y знаходиться у видимих межах
+                if (y >= _yMin && y <= _yMax)
+                {
+                    int px = MapX(currentX, width);
+                    int py = MapY(y, height);
 
-                // Рисуємо коло в точці
-                g.FillEllipse(pointBrush, px - 4, py - 4, 8, 8);
-                
-                // Виводимо підпис з координатами
-                string coord = $"({currentX:F1}, {y:F2})";
-                g.DrawString(coord, pointFont, Brushes.Black, px + 10, py - 5);
+                    g.FillEllipse(_pointBrush, px - 4, py - 4, 8, 8);
+                    
+                    string coord = $"({currentX:F1}, {y:F2})";
+                    g.DrawString(coord, _pointFont, Brushes.Black, px + 10, py - 5);
+                }
             }
         }
 
         // --- Методи трансформери ---
 
         /// <summary>
-        /// Перетворює логічну X-координату (з діапазону [xMin, xMax])
-        /// у фізичну піксельну X-координату на формі.
+        /// Перетворює логічну X-координату в піксельну X-координату.
         /// </summary>
         private int MapX(double x, int clientWidth)
         {
-            return (int)(padding + (x - xMin) / (xMax - xMin) * (clientWidth - 2 * padding));
+            // --- ВИПРАВЛЕНО: Захист від ділення на нуль ---
+            if (_xMax == _xMin)
+            {
+                return _padding; // Повертаємо ліву вісь
+            }
+            
+            return (int)(_padding + (x - _xMin) / (_xMax - _xMin) * (clientWidth - 2 * _padding));
         }
 
         /// <summary>
-        /// Перетворює логічну Y-координату (з діапазону [yMin, yMax])
-        /// у фізичну піксельну Y-координату на формі.
-        /// (Враховує, що вісь Y у GDI+ напрямлена вниз).
+        /// Перетворює логічну Y-координату в піксельну Y-координату.
         /// </summary>
         private int MapY(double y, int clientHeight)
         {
-            return (int)(clientHeight - padding - (y - yMin) / (yMax - yMin) * (clientHeight - 2 * padding));
+            // --- ВИПРАВЛЕНО: Захист від ділення на нуль ---
+            if (_yMax == _yMin)
+            {
+                return clientHeight - _padding; // Повертаємо нижню вісь
+            }
+
+            return (int)(clientHeight - _padding - (y - _yMin) / (_yMax - _yMin) * (clientHeight - 2 * _padding));
         }
     }
-
 }
