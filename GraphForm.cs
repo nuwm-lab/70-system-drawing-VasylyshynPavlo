@@ -192,7 +192,7 @@ namespace LabWork
         /// </summary>
         private int MapX(double x, int clientWidth)
         {
-            // --- ВИПРАВЛЕНО: Захист від ділення на нуль ---
+            // --- Захист від ділення на нуль ---
             if (_xMax == _xMin)
             {
                 return _padding; // Повертаємо ліву вісь
@@ -206,7 +206,7 @@ namespace LabWork
         /// </summary>
         private int MapY(double y, int clientHeight)
         {
-            // --- ВИПРАВЛЕНО: Захист від ділення на нуль ---
+            // --- Захист від ділення на нуль ---
             if (_yMax == _yMin)
             {
                 return clientHeight - _padding; // Повертаємо нижню вісь
