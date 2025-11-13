@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Windows.Forms;
 
 namespace LabWork
 {
@@ -9,10 +10,13 @@ namespace LabWork
     // за посиланням https://www.youtube.com/@ViktorZhukovskyy/videos 
     class Program
     {
-        static void Main(string[] args)
+        [STAThread]
+        static void Main()
         {
-            
-            Console.WriteLine("Hello World!");
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
+            Application.Run(new GraphForm());
         }
     }
 }
