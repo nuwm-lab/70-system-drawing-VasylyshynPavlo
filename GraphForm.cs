@@ -25,7 +25,10 @@ namespace LabWork
         private Font _axisFont = new Font("Arial", 8);
         private Brush _textBrush = Brushes.Black;
         private Pen _graphPen = new Pen(Color.Red, 3);
-        private Pen _axisPen = new Pen(Color.Black, 2);
+        private Pen _axisPen = new Pen(Color.Black, 2)
+        {
+            CustomEndCap = new System.Drawing.Drawing2D.AdjustableArrowCap(5, 5)
+        };
         private Pen _gridPen = new Pen(Color.LightGray, 1) { DashStyle = DashStyle.Dash };
         private Brush _pointBrush = Brushes.Blue;
         private Font _pointFont = new Font("Arial", 8, FontStyle.Bold);
